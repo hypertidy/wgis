@@ -1,7 +1,7 @@
 name: Preview pull request
 
 # Each pull request is built and published to
-# https://mdsumner.github.io/wgis/pr-preview/pr-<number>/ on the gh-pages
+# https://hypertidy.github.io/wgis/pr-preview/pr-<number>/ on the gh-pages
 # branch, with a comment on the PR linking it. Closing the PR removes it.
 # The build uses relative paths (vite base './'), so it works from a
 # subfolder as it is.
