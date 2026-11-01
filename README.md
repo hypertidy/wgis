@@ -122,9 +122,9 @@ The "samples..." menu has one small file per format, each in a different
 CRS, plus two remote files (Natural Earth coastline, FlatGeobuf's test
 countries). Some links:
 
-- [Samples on a globe over the AAT](https://mdsumner.github.io/wgis/?mode=centred&proj=ortho&center=110,-70&zoom=-14.5&url=./samples/polar-box-3031.fgb&url=./samples/lonlat-lines.parquet&url=./samples/tasmania-mga55.geojson)
-- [Polar square (EPSG:3031) in plain lon/lat](https://mdsumner.github.io/wgis/?mode=fixed&crs=EPSG:4326&extent=-180,180,-90,90&url=./samples/polar-box-3031.fgb)
-- [Coastline in Robinson centred on 150E](https://mdsumner.github.io/wgis/?mode=centred&proj=robin&center=150,0&zoom=-16.3&url=https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_coastline.geojson)
+- [Samples on a globe over the AAT](https://hypertidy.github.io/wgis/?mode=centred&proj=ortho&center=110,-70&zoom=-14.5&url=./samples/polar-box-3031.fgb&url=./samples/lonlat-lines.parquet&url=./samples/tasmania-mga55.geojson)
+- [Polar square (EPSG:3031) in plain lon/lat](https://hypertidy.github.io/wgis/?mode=fixed&crs=EPSG:4326&extent=-180,180,-90,90&url=./samples/polar-box-3031.fgb)
+- [Coastline in Robinson centred on 150E](https://hypertidy.github.io/wgis/?mode=centred&proj=robin&center=150,0&zoom=-16.3&url=https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_coastline.geojson)
 
 (These work once GitHub Pages serves the `gh-pages` branch: Settings >
 Pages > Source, "Deploy from a branch", `gh-pages`, root.
