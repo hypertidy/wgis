@@ -84,6 +84,10 @@ let recentreMode: RecentreMode = 'auto';
 // A release-mode drag accumulates as a look-around offset until the release
 // folds it into the centre; this says the current offset is that kind.
 let foldOnRelease = false;
+// Hold the projection centre where the centre fields put it: a drag or a
+// zoom only looks around (as a shift-drag does), it never re-centres. This
+// is what lets a view sit on a pole, where any re-centring drag tips it off.
+let holdCentre = false;
 let wrapSpec: WrapSpec | null = null;
 let wrapCRS = '';              // display CRS wrapSpec was detected for
 let showGraticule = true;
@@ -209,6 +213,7 @@ let engineSelect: HTMLSelectElement;
 let warpAlgSelect: HTMLSelectElement;
 let warpScaleInput: HTMLInputElement;
 let recentreSelect: HTMLSelectElement;
+let holdCentreInput: HTMLInputElement;
 let gratMinor: LineRenderer;
 let gratMajor: LineRenderer;
 let vertexCountEl: HTMLElement;
@@ -521,14 +526,15 @@ function recentreLive(): boolean {
 
 function handleViewChange(state: ViewState): void {
   if (mode === 'centred') {
-    if (executorFor(currentDisplayCRS()) === 'proj' && !state.shift &&
+    const lookOnly = state.shift || holdCentre;
+    if (executorFor(currentDisplayCRS()) === 'proj' && !lookOnly &&
         (state.centerX !== 0 || state.centerY !== 0)) {
       handleViewChangeProj(state);
       return;
     }
     // On release of a release-mode drag, fold the accumulated look-around
     // into the centre: the point now under the screen centre becomes it.
-    if (!state.dragging && foldOnRelease && !state.shift) {
+    if (!state.dragging && foldOnRelease && !lookOnly) {
       foldOnRelease = false;
       const next = panCentre(resolveTemplate(centredProj), centreLon, centreLat, centredOriginX, centredOriginY);
       if (next) {
@@ -544,12 +550,12 @@ function handleViewChange(state: ViewState): void {
     // Consume any pan offset: the display point now at the screen centre
     // becomes the new projection centre, and the camera snaps back to origin.
     if (state.centerX !== 0 || state.centerY !== 0) {
-      if (state.shift || (state.dragging && !recentreLive())) {
+      if (lookOnly || (state.dragging && !recentreLive())) {
         // Look around: move over the projection as it stands, no re-centring
-        // (for a release-mode drag, not yet).
+        // (for a release-mode drag, not yet; for a held centre, never).
         lookOffsetX += state.centerX;
         lookOffsetY += state.centerY;
-        if (!state.shift) foldOnRelease = true;
+        if (!lookOnly) foldOnRelease = true;
       } else {
         const next = panCentre(resolveTemplate(centredProj), centreLon, centreLat,
           centredOriginX + state.centerX, centredOriginY + state.centerY);
@@ -1362,9 +1368,10 @@ function updateInfo(state: ViewState): void {
   if (mode === 'centred') {
     lines.push(`Centre: ${centreLon.toFixed(4)}, ${centreLat.toFixed(4)}`);
     if (wrapWorld) lines.push(currentWrap() ? 'Wrap: repeating the world' : 'Wrap: this projection has no sideways repeat');
-    lines.push(`Re-centre: ${recentreLive() ? 'live' : 'on release'}`);
+    lines.push(`Re-centre: ${holdCentre ? 'held (drags look around)' : recentreLive() ? 'live' : 'on release'}`);
     if ((lookOffsetX !== 0 || lookOffsetY !== 0) && !foldOnRelease) {
-      lines.push(`Looking ${formatUnits(Math.hypot(lookOffsetX, lookOffsetY), 'm')} off centre (shift-drag; a plain drag re-centres)`);
+      lines.push(`Looking ${formatUnits(Math.hypot(lookOffsetX, lookOffsetY), 'm')} off centre` +
+        (holdCentre ? ' (centre held; Enter in the centre fields goes back)' : ' (shift-drag; a plain drag re-centres)'));
     }
   } else {
     lines.push(`Centre: ${state.centerX.toFixed(1)}, ${state.centerY.toFixed(1)}`);
@@ -1722,6 +1729,7 @@ function syncUI(): void {
   warpAlgSelect.value = warpAlg;
   warpScaleInput.value = String(warpScale);
   recentreSelect.value = recentreMode;
+  holdCentreInput.checked = holdCentre;
   graticuleInput.checked = showGraticule;
   if (coastlineInput) coastlineInput.checked = showCoastline;
   displayCrsInput.value = displayCRS;
@@ -1777,6 +1785,8 @@ function applyUrlParams(params: URLSearchParams): void {
 
   const rc = params.get('recentre');
   if (rc === 'live' || rc === 'release' || rc === 'auto') recentreMode = rc;
+  const hold = params.get('hold');
+  if (hold !== null) holdCentre = hold === '1' || hold === 'true';
 
   const crs = params.get('crs');
   if (crs) displayCRS = crs;
@@ -1840,6 +1850,7 @@ function viewUrl(withLayers: boolean): string {
   if (!showGraticule) p.set('grat', '0');
   if (wrapWorld) p.set('wrap', '1');
   if (recentreMode !== 'auto') p.set('recentre', recentreMode);
+  if (holdCentre) p.set('hold', '1');
   if (engineKind !== 'mesh') p.set('engine', engineKind);
   if (warpAlg !== 'bilinear') p.set('alg', warpAlg);
   if (warpScale !== 1) p.set('warpscale', String(warpScale));
@@ -1926,6 +1937,16 @@ async function setCentredView(proj: string, lon: number, lat: number, zoom: numb
   makeViewController({ centerX: 0, centerY: 0, zoom });
   syncUI();
   return true;
+}
+
+/**
+ * Put the centred view's projection centre at a lon/lat, keeping the
+ * projection and the zoom, and dropping any look-around offset.
+ */
+async function goToCentre(lon: number, lat: number): Promise<void> {
+  if (mode !== 'centred') return;
+  stopSpin();
+  await setCentredView(centredProj, lon, lat, viewController.getState().zoom);
 }
 
 /**
@@ -2017,7 +2038,7 @@ let spinLast = 0;
 let spinRefreshLast = 0;
 
 function startSpin(): void {
-  if (spinning || mode !== 'centred') return;
+  if (spinning || mode !== 'centred' || holdCentre) return;
   spinning = true;
   spinLast = performance.now();
   requestAnimationFrame(spinStep);
@@ -2384,6 +2405,7 @@ async function main() {
   wireframeInput = document.getElementById('wireframe') as HTMLInputElement;
   wrapInput = document.getElementById('wrap') as HTMLInputElement;
   recentreSelect = document.getElementById('recentre') as HTMLSelectElement;
+  holdCentreInput = document.getElementById('hold-centre') as HTMLInputElement;
   engineSelect = document.getElementById('engine') as HTMLSelectElement;
   warpAlgSelect = document.getElementById('warp-alg') as HTMLSelectElement;
   warpScaleInput = document.getElementById('warp-scale') as HTMLInputElement;
@@ -2616,6 +2638,36 @@ async function main() {
     recentreMode = recentreSelect.value as RecentreMode;
     scheduleUrlUpdate();
   });
+  // Centre fields: Enter (or leaving a field) puts the centre there, keeping
+  // the projection and zoom. Holding goes to the fields first, so the held
+  // centre is always the one they show.
+  const centreFromFields = (): void => {
+    const lon = parseFloat(centreLonInput.value), lat = parseFloat(centreLatInput.value);
+    if (isNaN(lon) || isNaN(lat)) {
+      syncCentreInputs();
+      return;
+    }
+    void goToCentre(lon, lat);
+  };
+  centreLonInput.addEventListener('change', centreFromFields);
+  centreLatInput.addEventListener('change', centreFromFields);
+  holdCentreInput.addEventListener('change', () => {
+    holdCentre = holdCentreInput.checked;
+    foldOnRelease = false;
+    if (holdCentre) {
+      stopSpin();
+      centreFromFields();
+    }
+    updateUI();
+    scheduleUrlUpdate();
+  });
+  for (const b of document.querySelectorAll<HTMLButtonElement>('.quick-sets button')) {
+    b.addEventListener('click', () => {
+      const [lon, lat] = (b.dataset.at || '').split(',').map(Number);
+      if (!isFinite(lon) || !isFinite(lat)) return;
+      void goToCentre(lon, lat);
+    });
+  }
   wrapInput.addEventListener('change', () => {
     wrapWorld = wrapInput.checked;
     wrapCRS = '';
