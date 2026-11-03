@@ -229,6 +229,13 @@
         padding: 1px;
         max-width: 110px;
       }
+      #controls label.inline {
+        width: auto;
+      }
+      .quick-sets button {
+        font-size: 10px;
+        padding: 1px 4px;
+      }
       .scale-row button {
         font-size: 10px;
         padding: 1px 4px;
@@ -454,7 +461,20 @@
             <label>Centre:</label>
             <input type="text" id="centre-lon" class="small" value="0" title="longitude" />
             <input type="text" id="centre-lat" class="small" value="-90" title="latitude" />
-            <span class="hint">lon, lat (drag the map to move it; shift-drag looks around without re-centring)</span>
+            <label class="inline" title="hold the projection centre at these fields: a drag or zoom looks around, it never moves the centre"><input type="checkbox" id="hold-centre" /> hold</label>
+          </div>
+          <div class="control-row quick-sets">
+            <label>Go to:</label>
+            <button data-at="0,90" title="north pole">N</button>
+            <button data-at="0,-90" title="south pole">S</button>
+            <button data-at="0,0" title="equator, 0">0</button>
+            <button data-at="90,0" title="equator, 90E">90E</button>
+            <button data-at="180,0" title="equator, 180">180</button>
+            <button data-at="-90,0" title="equator, 90W">90W</button>
+          </div>
+          <div class="control-row">
+            <label></label>
+            <span class="hint">Enter sets the centre. A drag moves it; shift-drag, or hold, only looks around.</span>
           </div>
           <div class="control-row">
             <label for="recentre">Re-centre:</label>
